@@ -1,0 +1,20 @@
+let
+  URL = "https://login.microsoftonline.com",
+  Body = "grant_type=client_credentials&client_id=YOUR_CLIENT_ID&client_secret=YOUR_CLIENT_SECRET&resource=https%3A%2F%2Fgraph.microsoft.com%2F",
+  Options = [
+        Headers = [
+            #"Content-Type" = "application/x-www-form-urlencoded"
+        ],
+        RelativePath = "/YOUR_TENANT_DOMAIN_NAME/oauth2/token?api-version=1.0",
+        Content = Text.ToBinary(Body),
+        Timeout = #duration(0,0,5,0)
+    ],
+  tokenResponse = Web.Contents(URL, Options),
+  #"Imported JSON" = Json.Document(tokenResponse, 65001),
+  access_token = #"Imported JSON"[access_token],
+  token = "Bearer " & #"Imported JSON"[access_token],
+  GetJsonQuery = OData.Feed("https://graph.microsoft.com/beta/users", null, [ Implementation="2.0", Headers=[Authorization=token] ]),
+  #"Removed Other Columns" = Table.SelectColumns(GetJsonQuery, {"id", "mail"}),
+  #"Lowercased Text" = Table.TransformColumns(#"Removed Other Columns",{{"mail", Text.Lower, type text}})
+in
+  #"Lowercased Text"
